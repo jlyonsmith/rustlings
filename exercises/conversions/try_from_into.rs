@@ -3,6 +3,7 @@
 // instead of the target type itself.
 // You can read more about it at https://doc.rust-lang.org/std/convert/trait.TryFrom.html
 use std::convert::{TryFrom, TryInto};
+use std::error::Error;
 
 #[derive(Debug, PartialEq)]
 struct Color {
@@ -10,8 +11,6 @@ struct Color {
     green: u8,
     blue: u8,
 }
-
-// I AM NOT DONE
 
 // Your task is to complete this implementation
 // and return an Ok result of inner type Color.
@@ -22,27 +21,57 @@ struct Color {
 // but slice implementation need check slice length!
 // Also note, that chunk of correct rgb color must be integer in range 0..=255.
 
+macro_rules! try_from_u8 {
+    ($val:expr) => {
+        match u8::try_from($val) {
+            Ok(n) => n,
+            Err(e) => return Err(e.to_string()),
+        }
+    };
+}
+
 // Tuple implementation
 impl TryFrom<(i16, i16, i16)> for Color {
     type Error = String;
-    fn try_from(tuple: (i16, i16, i16)) -> Result<Self, Self::Error> {}
+    fn try_from(tuple: (i16, i16, i16)) -> Result<Self, Self::Error> {
+        Ok(Color {
+            red: try_from_u8!(tuple.0),
+            green: try_from_u8!(tuple.1),
+            blue: try_from_u8!(tuple.2),
+        })
+    }
 }
 
 // Array implementation
 impl TryFrom<[i16; 3]> for Color {
     type Error = String;
-    fn try_from(arr: [i16; 3]) -> Result<Self, Self::Error> {}
+    fn try_from(arr: [i16; 3]) -> Result<Self, Self::Error> {
+        Ok(Color {
+            red: try_from_u8!(arr[0]),
+            green: try_from_u8!(arr[1]),
+            blue: try_from_u8!(arr[2]),
+        })
+    }
 }
 
 // Slice implementation
 impl TryFrom<&[i16]> for Color {
     type Error = String;
-    fn try_from(slice: &[i16]) -> Result<Self, Self::Error> {}
+    fn try_from(slice: &[i16]) -> Result<Self, Self::Error> {
+        if (slice.len() != 3) {
+            return Err("slice length must be 3".into());
+        }
+        Ok(Color {
+            red: try_from_u8!(slice[0]),
+            green: try_from_u8!(slice[1]),
+            blue: try_from_u8!(slice[2]),
+        })
+    }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     // Use the `from` function
-    let c1 = Color::try_from((183, 65, 14));
+    let c1 = Color::try_from((183, 65, 14))?;
     println!("{:?}", c1);
 
     // Since From is implemented for Color, we should be able to use Into
@@ -51,11 +80,13 @@ fn main() {
 
     let v = vec![183, 65, 14];
     // With slice we should use `from` function
-    let c3 = Color::try_from(&v[..]);
+    let c3 = Color::try_from(&v[..])?;
     println!("{:?}", c3);
     // or take slice within round brackets and use Into
     let c4: Result<Color, _> = (&v[..]).try_into();
     println!("{:?}", c4);
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -76,7 +107,7 @@ mod tests {
     }
     #[test]
     fn test_tuple_correct() {
-        let c: Result<Color, String> = (183, 65, 14).try_into();
+        let c = (183, 65, 14).try_into();
         assert_eq!(
             c,
             Ok(Color {
@@ -88,17 +119,17 @@ mod tests {
     }
     #[test]
     fn test_array_out_of_range_positive() {
-        let c: Color = [1000, 10000, 256].try_into();
+        let c: Result<Color, _> = [1000, 10000, 256].try_into();
         assert!(c.is_err());
     }
     #[test]
     fn test_array_out_of_range_negative() {
-        let c: Color = [-10, -256, -1].try_into();
+        let c: Result<Color, _> = [-10, -256, -1].try_into();
         assert!(c.is_err());
     }
     #[test]
     fn test_array_sum() {
-        let c: Color = [-1, 255, 255].try_into();
+        let c: Result<Color, _> = [-1, 255, 255].try_into();
         assert!(c.is_err());
     }
     #[test]
